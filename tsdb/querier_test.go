@@ -2173,7 +2173,7 @@ func TestPostingsForMatchers(t *testing.T) {
 			for _, l := range c.exp {
 				exp[l.String()] = struct{}{}
 			}
-			p, err := PostingsForMatchers(ir, c.matchers...)
+			p, err := PostingsForMatchers(context.Background(), ir, c.matchers...)
 			require.NoError(t, err)
 
 			var builder labels.ScratchBuilder
@@ -2430,7 +2430,7 @@ func TestPostingsForMatcher(t *testing.T) {
 
 	for _, tc := range cases {
 		ir := &mockMatcherIndex{}
-		_, err := postingsForMatcher(ir, tc.matcher)
+		_, err := postingsForMatcher(context.Background(), ir, tc.matcher)
 		if tc.hasError {
 			require.Error(t, err)
 		} else {
@@ -2677,7 +2677,7 @@ func TestQueryWithDeletedHistograms(t *testing.T) {
 			require.NoError(t, err)
 
 			// Delete the last 20.
-			err = db.Delete(80, 100, matcher)
+			err = db.Delete(context.Background(), 80, 100, matcher)
 			require.NoError(t, err)
 
 			chunkQuerier, err := db.ChunkQuerier(0, 100)

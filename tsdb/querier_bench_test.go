@@ -166,7 +166,7 @@ func benchmarkPostingsForMatchers(b *testing.B, ir IndexReader) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_, err := PostingsForMatchers(ir, c.matchers...)
+				_, err := PostingsForMatchers(context.Background(), ir, c.matchers...)
 				require.NoError(b, err)
 			}
 		})
@@ -205,7 +205,7 @@ func benchmarkLabelValuesWithMatchers(b *testing.B, ir IndexReader) {
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, err := labelValuesWithMatchers(ir, c.labelName, c.matchers...)
+				_, err := labelValuesWithMatchers(context.Background(), ir, c.labelName, c.matchers...)
 				require.NoError(b, err)
 			}
 		})

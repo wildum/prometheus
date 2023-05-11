@@ -15,6 +15,7 @@
 package tsdb
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -476,7 +477,7 @@ func (r blockIndexReader) LabelValues(name string, matchers ...*labels.Matcher) 
 		return st, errors.Wrapf(err, "block: %s", r.b.Meta().ULID)
 	}
 
-	return labelValuesWithMatchers(r.ir, name, matchers...)
+	return labelValuesWithMatchers(context.Background(), r.ir, name, matchers...)
 }
 
 func (r blockIndexReader) LabelNames(matchers ...*labels.Matcher) ([]string, error) {
@@ -484,7 +485,7 @@ func (r blockIndexReader) LabelNames(matchers ...*labels.Matcher) ([]string, err
 		return r.b.LabelNames()
 	}
 
-	return labelNamesWithMatchers(r.ir, matchers...)
+	return labelNamesWithMatchers(context.Background(), r.ir, matchers...)
 }
 
 func (r blockIndexReader) Postings(name string, values ...string) (index.Postings, error) {
@@ -543,7 +544,7 @@ func (r blockChunkReader) Close() error {
 }
 
 // Delete matching series between mint and maxt in the block.
-func (pb *Block) Delete(mint, maxt int64, ms ...*labels.Matcher) error {
+func (pb *Block) Delete(ctx context.Context, mint, maxt int64, ms ...*labels.Matcher) error {
 	pb.mtx.Lock()
 	defer pb.mtx.Unlock()
 
@@ -551,7 +552,7 @@ func (pb *Block) Delete(mint, maxt int64, ms ...*labels.Matcher) error {
 		return ErrClosing
 	}
 
-	p, err := PostingsForMatchers(pb.indexr, ms...)
+	p, err := PostingsForMatchers(ctx, pb.indexr, ms...)
 	if err != nil {
 		return errors.Wrap(err, "select series")
 	}

@@ -253,7 +253,7 @@ func PostingsForMatchers(ctx context.Context, ix IndexReader, ms ...*labels.Matc
 		switch {
 		case m.Name == "" && m.Value == "": // Special-case for AllPostings, used in tests at least.
 			k, v := index.AllPostingsKey()
-			allPostings, err := ix.Postings(k, v)
+			allPostings, err := ix.Postings(ctx, k, v)
 			if err != nil {
 				return nil, err
 			}
@@ -319,7 +319,7 @@ func PostingsForMatchers(ctx context.Context, ix IndexReader, ms ...*labels.Matc
 	// If there's nothing to subtract from, add in everything and remove the notIts later.
 	if len(its) == 0 && len(notIts) != 0 {
 		k, v := index.AllPostingsKey()
-		allPostings, err := ix.Postings(k, v)
+		allPostings, err := ix.Postings(ctx, k, v)
 		if err != nil {
 			return nil, err
 		}
@@ -340,14 +340,14 @@ func postingsForMatcher(ctx context.Context, ix IndexReader, m *labels.Matcher) 
 
 	// Fast-path for equal matching.
 	if m.Type == labels.MatchEqual {
-		return ix.Postings(m.Name, m.Value)
+		return ix.Postings(ctx, m.Name, m.Value)
 	}
 
 	// Fast-path for set matching.
 	if m.Type == labels.MatchRegexp {
 		setMatches := findSetMatches(m.GetRegexString())
 		if len(setMatches) > 0 {
-			return ix.Postings(m.Name, setMatches...)
+			return ix.Postings(ctx, m.Name, setMatches...)
 		}
 	}
 
@@ -370,7 +370,7 @@ func postingsForMatcher(ctx context.Context, ix IndexReader, m *labels.Matcher) 
 		return index.EmptyPostings(), nil
 	}
 
-	return ix.Postings(m.Name, res...)
+	return ix.Postings(ctx, m.Name, res...)
 }
 
 // inversePostingsForMatcher returns the postings for the series with the label name set but not matching the matcher.
@@ -381,14 +381,14 @@ func inversePostingsForMatcher(ctx context.Context, ix IndexReader, m *labels.Ma
 	if m.Type == labels.MatchNotRegexp {
 		setMatches := findSetMatches(m.GetRegexString())
 		if len(setMatches) > 0 {
-			return ix.Postings(m.Name, setMatches...)
+			return ix.Postings(ctx, m.Name, setMatches...)
 		}
 	}
 
 	// Fast-path for MatchNotEqual matching.
 	// Inverse of a MatchNotEqual is MatchEqual (double negation).
 	if m.Type == labels.MatchNotEqual {
-		return ix.Postings(m.Name, m.Value)
+		return ix.Postings(ctx, m.Name, m.Value)
 	}
 
 	vals, err := ix.LabelValues(m.Name)
@@ -412,7 +412,7 @@ func inversePostingsForMatcher(ctx context.Context, ix IndexReader, m *labels.Ma
 		}
 	}
 
-	return ix.Postings(m.Name, res...)
+	return ix.Postings(ctx, m.Name, res...)
 }
 
 func labelValuesWithMatchers(ctx context.Context, r IndexReader, name string, matchers ...*labels.Matcher) ([]string, error) {
@@ -447,7 +447,7 @@ func labelValuesWithMatchers(ctx context.Context, r IndexReader, name string, ma
 
 	valuesPostings := make([]index.Postings, len(allValues))
 	for i, value := range allValues {
-		valuesPostings[i], err = r.Postings(name, value)
+		valuesPostings[i], err = r.Postings(ctx, name, value)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching postings for %s=%q", name, value)
 		}

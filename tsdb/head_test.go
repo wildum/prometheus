@@ -2442,7 +2442,7 @@ func TestOutOfOrderSamplesMetric(t *testing.T) {
 	require.NoError(t, app.Commit())
 
 	require.Equal(t, int64(math.MinInt64), db.head.minValidTime.Load())
-	require.NoError(t, db.Compact())
+	require.NoError(t, db.Compact(ctx))
 	require.Greater(t, db.head.minValidTime.Load(), int64(0))
 
 	app = db.Appender(ctx)
@@ -2893,6 +2893,7 @@ func TestIteratorSeekIntoBuffer(t *testing.T) {
 func TestChunkNotFoundHeadGCRace(t *testing.T) {
 	db := newTestDB(t)
 	db.DisableCompactions()
+	ctx := context.Background()
 
 	var (
 		app        = db.Appender(context.Background())
@@ -2925,7 +2926,7 @@ func TestChunkNotFoundHeadGCRace(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		// Compacting head while the querier spans the compaction time.
-		require.NoError(t, db.Compact())
+		require.NoError(t, db.Compact(ctx))
 		require.Greater(t, len(db.Blocks()), 0)
 	}()
 
@@ -2958,6 +2959,7 @@ func TestChunkNotFoundHeadGCRace(t *testing.T) {
 func TestDataMissingOnQueryDuringCompaction(t *testing.T) {
 	db := newTestDB(t)
 	db.DisableCompactions()
+	ctx := context.Background()
 
 	var (
 		app        = db.Appender(context.Background())
@@ -2987,7 +2989,7 @@ func TestDataMissingOnQueryDuringCompaction(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		// Compacting head while the querier spans the compaction time.
-		require.NoError(t, db.Compact())
+		require.NoError(t, db.Compact(ctx))
 		require.Greater(t, len(db.Blocks()), 0)
 	}()
 

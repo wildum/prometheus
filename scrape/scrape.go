@@ -35,6 +35,7 @@ import (
 	config_util "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/common/version"
+	"go.uber.org/atomic"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
@@ -543,6 +544,16 @@ func (sp *scrapePool) refreshTargetLimitErr() error {
 	return nil
 }
 
+func (sp *scrapePool) disableEndOfRunStalenessMarkers(targets []*Target) {
+	sp.mtx.Lock()
+	defer sp.mtx.Unlock()
+	for i := range targets {
+		if l, ok := sp.loops[targets[i].hash()]; ok {
+			l.disableEndOfRunStalenessMarkers()
+		}
+	}
+}
+
 func verifyLabelLimits(lset labels.Labels, limits *labelLimits) error {
 	if limits == nil {
 		return nil
@@ -840,7 +851,7 @@ type scrapeLoop struct {
 	cancel      func()
 	stopped     chan struct{}
 
-	disabledEndOfRunStalenessMarkers bool
+	disabledEndOfRunStalenessMarkers atomic.Bool
 
 	reportExtraMetrics  bool
 	appendMetadataToWAL bool
@@ -1247,7 +1258,7 @@ mainLoop:
 
 	close(sl.stopped)
 
-	if !sl.disabledEndOfRunStalenessMarkers {
+	if !sl.disabledEndOfRunStalenessMarkers.Load() {
 		sl.endOfRunStaleness(last, ticker, sl.interval)
 	}
 }
@@ -1408,6 +1419,11 @@ func (sl *scrapeLoop) endOfRunStaleness(last time.Time, ticker *time.Ticker, int
 	case <-time.After(interval / 10):
 	}
 
+	// Check if end-of-run staleness markers have been disabled while we were waiting.
+	if sl.disabledEndOfRunStalenessMarkers.Load() {
+		return
+	}
+
 	// Call sl.append again with an empty scrape to trigger stale markers.
 	// If the target has since been recreated and scraped, the
 	// stale markers will be out of order and ignored.
@@ -1442,7 +1458,7 @@ func (sl *scrapeLoop) stop() {
 }
 
 func (sl *scrapeLoop) disableEndOfRunStalenessMarkers() {
-	sl.disabledEndOfRunStalenessMarkers = true
+	sl.disabledEndOfRunStalenessMarkers.Store(true)
 }
 
 func (sl *scrapeLoop) getCache() *scrapeCache {
